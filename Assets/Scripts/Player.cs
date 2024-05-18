@@ -101,6 +101,8 @@ public class Player : MonoBehaviour
         playerModel.transform.forward = forward;
         forward = Quaternion.AngleAxis(90 * sign, Vector3.up) * forward;
 
+        dotVel *= 0.75f;
+
         playerVelocity.y = jumpHeight;
         
     }
@@ -109,7 +111,7 @@ public class Player : MonoBehaviour
     {
 
         if (surfaceDot >= 0.01f || surfaceDot == 2 || currentCollision == null) inWallclimb = false;
-
+        if (currentCollision == null) return;
         playerVelocity.x = (forward.x * dotVel);
         playerVelocity.z = (forward.z * dotVel);
         // Debug.Log(playerVelocity.x + ", " + playerVelocity.z);

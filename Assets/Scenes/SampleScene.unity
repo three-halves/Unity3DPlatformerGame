@@ -2057,7 +2057,7 @@ MonoBehaviour:
   camParent: {fileID: 2082195254}
   gravity: -0.95
   startSpeed: 5
-  accel: 1
+  accel: 0.75
   deaccel: 8
   pSpeed: 100
   jumpHeight: 15
