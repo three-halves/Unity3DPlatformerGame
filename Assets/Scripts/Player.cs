@@ -114,10 +114,10 @@ public class Player : MonoBehaviour
             playerVelocity.y *= jumpControl;
         }
         
-        // wall bonk logic
-        if (!walledLastFrame && IsWalled())
+        // wall logic
+        if (IsWalled())
         {
-            if (dotVel > pSpeed / 2)
+            if (!walledLastFrame && !IsGrounded() && dotVel > pSpeed / 2)
             {
                 addedVel = -forward * dotVel / 2;
                 playerVelocity.y = dotVel / 2;
