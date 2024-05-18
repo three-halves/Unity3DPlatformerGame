@@ -11,7 +11,7 @@ public class Player : MonoBehaviour
     private Rigidbody rb;
     // private Collider collider;
     // [SerializeField] private InputActionAsset actionAsset;
-    private Vector3 playerVelocity;
+    private Vector3 playerVel;
     private bool groundedLastFrame;
     private bool walledLastFrame;
     [SerializeField] private Vector2 camSens;
@@ -40,10 +40,8 @@ public class Player : MonoBehaviour
     private bool dashPressedLastFrame = false;
     // above 0 when dashing
     private float currentDashTimer = 0f;
-    private float dotVel;
 
-    // velocity not controlled by player direction or max speed
-    private Vector3 addedVel;
+    private Vector3 targetVel;
 
     // Start is called before the first frame update
     void Start()
@@ -59,13 +57,14 @@ public class Player : MonoBehaviour
         debugText.text += "Grounded: " + IsGrounded() + "\n";
         debugText.text += "Walled: " + IsWalled() + "\n";
         debugText.text += "Dash timer: " + currentDashTimer + "\n";
-        debugText.text += "Dot: " + Vector3.Dot(playerVelocity, forward) + "\n";
-        debugText.text += "Add: " + addedVel;
+        debugText.text += "Dot: " + Vector3.Dot(playerVel, forward) + "\n";
+        debugText.text += "Target: " + targetVel + "\n";
+        debugText.text += "Cur: " + playerVel + "\n";
     }
 
     void FixedUpdate()
     {
-        playerVelocity = rb.velocity;
+        playerVel = rb.velocity;
 
         // camera logic
         camParent.eulerAngles = new Vector3(camParent.eulerAngles.x + camRotateDir.y * camSens.y, camParent.eulerAngles.y + camRotateDir.x * camSens.x, 0f);
@@ -76,60 +75,48 @@ public class Player : MonoBehaviour
         Vector3 oldCamAngles = camParent.eulerAngles;
         camParent.eulerAngles = new Vector3(0f, camParent.eulerAngles.y + camRotateDir.x * -camSens.x, 0f);
         // camParent.eulerAngles = new Vector3(0f, camRotateDir.x * camSens.x, 0f);
-        if (moveDir != Vector3.zero) 
-        {
-            normalizedMoveDir = Vector3.Normalize(moveDir);
-            forward = camParent.TransformDirection(normalizedMoveDir);
-            dotVel = Mathf.Max(startSpeed, dotVel + accel * (IsGrounded() ? 1f : 0.5f));
-        }
+        normalizedMoveDir = Vector3.Normalize(moveDir);
+        forward = camParent.TransformDirection(normalizedMoveDir);
         camParent.eulerAngles = oldCamAngles;
 
-        playerVelocity.x = (forward.x * dotVel);
-        playerVelocity.z = (forward.z * dotVel);
+        targetVel = new Vector3(forward.x * pSpeed, playerVel.y, forward.z * pSpeed);
 
-        // top speed logic
-        if (dotVel > pSpeed)
-        {
-            dotVel -= accel;
-        }
+        // calculate delta vel for this frame
+        float dvx = 0f;
+        float dvz = 0f;
+
+        // float dvx = (targetVel.x != playerVel.x) ? (accel * Mathf.Sign(targetVel.x - playerVel.x)) : 0f;
+        // float dvz = (targetVel.z != playerVel.z) ? (accel * Mathf.Sign(targetVel.z - playerVel.z)) : 0f;
+        if (playerVel.x != targetVel.x) dvx = (Mathf.Abs(targetVel.x) > Mathf.Abs(playerVel.x) ? accel : deaccel) * Mathf.Sign(targetVel.x - playerVel.x);
+        if (playerVel.z != targetVel.z) dvz = (Mathf.Abs(targetVel.z) > Mathf.Abs(playerVel.z) ? accel : deaccel) * Mathf.Sign(targetVel.z - playerVel.z);
+
+        playerVel.x += dvx;
+        playerVel.z += dvz;
+        if (targetVel.x == 0 && Mathf.Abs(playerVel.x) <= deaccel) playerVel.x = 0;
+        if (targetVel.z == 0 && Mathf.Abs(playerVel.z) <= deaccel) playerVel.z = 0;
 
         if (moveDir != Vector3.zero) playerModel.transform.forward = forward;
-        else dotVel = Mathf.Max(dotVel - deaccel * (IsGrounded() ? 1f : 0.25f), 0f);
-
-        addedVel = new Vector3(Mathf.Max(Mathf.Abs(addedVel.x) - deaccel * (IsGrounded() ? 1f : 0.25f), 0f) * Mathf.Sign(addedVel.x), 0f, Mathf.Max(Mathf.Max(Mathf.Abs(addedVel.z) - deaccel * (IsGrounded() ? 1f : 0.25f), 0f) * Mathf.Sign(addedVel.z)));
 
         // gravity
-        if (!IsGrounded() && !(currentDashTimer > 0) ) playerVelocity.y += gravity;
-        else playerVelocity.y = 0;
+        if (!IsGrounded() && !(currentDashTimer > 0) ) playerVel.y += gravity;
+        else playerVel.y = 0;
 
         // jump logic
         if ((IsGrounded() || currentDashTimer > 0) && jumpPressed)
         {
-            playerVelocity.y = jumpHeight;
+            playerVel.y = jumpHeight;
             currentDashTimer = 0f;
         }
 
-        if (playerVelocity.y > 0 && !jumpPressed)
+        if (playerVel.y > 0 && !jumpPressed)
         {
-            playerVelocity.y *= jumpControl;
-        }
-        
-        // wall bonk logic
-        if (!walledLastFrame && IsWalled())
-        {
-            if (dotVel > pSpeed / 2)
-            {
-                addedVel = -forward * dotVel / 2;
-                playerVelocity.y = dotVel / 2;
-            }
-
-            dotVel = 0;
+            playerVel.y *= jumpControl;
         }
 
         // end of frame logic
         groundedLastFrame = IsGrounded();
         walledLastFrame = IsWalled();
-        rb.velocity = playerVelocity + addedVel;
+        rb.velocity = playerVel;
         dashPressedLastFrame = dashPressedThisFrame;
     }
 
